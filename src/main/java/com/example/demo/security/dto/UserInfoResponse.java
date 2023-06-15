@@ -21,6 +21,8 @@ public class UserInfoResponse {
 
     private List<String> roles= new ArrayList<>();
 
+    private String tokent; 
+
 
     
 }

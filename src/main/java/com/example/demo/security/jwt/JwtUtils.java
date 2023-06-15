@@ -3,11 +3,16 @@ package com.example.demo.security.jwt;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
@@ -15,7 +20,8 @@ import com.example.demo.security.service.UserDetailsImpl;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-
+import jakarta.servlet.http.HttpServletResponse;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -92,4 +98,40 @@ public class JwtUtils {
                .signWith(key(), SignatureAlgorithm.HS256)
                .compact();
   }
+//nuevo
+  public String getJWTToken(UserDetailsImpl userDetails) {
+		
+		String token = Jwts
+				.builder()
+				.setId("bbdTienda")
+				.setSubject(userDetails.getUsername())
+				.claim("authorities",
+						userDetails.getAuthorities().stream()
+								.map(GrantedAuthority::getAuthority)
+								.collect(Collectors.toList()))
+				.setIssuedAt(new Date(System.currentTimeMillis()))
+				.setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+				.signWith(key(), SignatureAlgorithm.HS256).compact();
+
+		return "Bearer " + token;
+	}
+
+  public boolean existeJWTToken(HttpServletRequest request, HttpServletResponse res) {
+		String authenticationHeader = request.getHeader("Authorization");
+		if (authenticationHeader == null || !authenticationHeader.startsWith("Bearer"))
+			return false;
+		return true;
+	}
+
+  public boolean validateToken(HttpServletRequest request) {
+		String jwtToken = request.getHeader("Authorization").replace("Bearer", "");
+		return validateJwtToken(jwtToken);
+	}
+
+  public String getHeaderToken(HttpServletRequest request) {
+		return request.getHeader("Authorization").replace("Bearer", "");
+	}
+
+
+
 }

@@ -13,6 +13,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.example.demo.security.service.UserDetailsServiceImpl;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +34,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    try {
+    /*try {
       String jwt = parseJwt(request);
       if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
         String username = jwtUtils.getUserNameFromJwtToken(jwt);
@@ -50,11 +54,37 @@ public class AuthTokenFilter extends OncePerRequestFilter {
       logger.error("Cannot set user authentication: {}", e);
     }
 
-    filterChain.doFilter(request, response);
+    filterChain.doFilter(request, response);*/
+    try {
+			if (jwtUtils.existeJWTToken(request, response) && jwtUtils.validateToken(request)) {
+          String reqToken = jwtUtils.getHeaderToken(request);
+          String username = jwtUtils.getUserNameFromJwtToken(reqToken);
+
+          UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+          
+          UsernamePasswordAuthenticationToken authentication = 
+              new UsernamePasswordAuthenticationToken(userDetails,
+                                                      null,
+                                                      userDetails.getAuthorities());
+          
+          authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+          SecurityContextHolder.getContext().setAuthentication(authentication);
+
+				} else {
+					SecurityContextHolder.clearContext();
+				}
+			filterChain.doFilter(request, response);
+		} catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException e) {
+			response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+			((HttpServletResponse) response).sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+			return;
+		}
   }
 
   private String parseJwt(HttpServletRequest request) {
     String jwt = jwtUtils.getJwtFromCookies(request);
     return jwt;
   }
+  
 }
